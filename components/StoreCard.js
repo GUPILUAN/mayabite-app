@@ -49,7 +49,7 @@ export default function StoreCard({ item }) {
                   style={{ color: themeColors.starsColor(item.stars) }}
                   className={"text-xs"}
                 >
-                  {item.stars}
+                  {item.stars.toFixed(1)}
                 </Text>
                 <Text className="text-gray-700">
                   ({item.reviews} reviews) •{" "}

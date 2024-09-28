@@ -9,6 +9,7 @@ import bebidasImagen from "../assets/images/categories/Bebidas.png";
 import postresImagen from "../assets/images/categories/Postres.png";
 import pastaImagen from "../assets/images/categories/Pasta.png";
 import mariscosImagen from "../assets/images/categories/Mariscos.png";
+import axios from "axios";
 
 // Importa todas las imágenes necesarias
 
@@ -20,6 +21,33 @@ const imageMap = {
   Postres: postresImagen,
   Pasta: pastaImagen,
   Mariscos: mariscosImagen,
+};
+
+export const loginUser = async (data, isResetting, isLogin) => {
+  try {
+    const url = isResetting
+      ? `${apiMayabite}/user/reset_request`
+      : isLogin
+        ? `${apiMayabite}/user/login`
+        : `${apiMayabite}/user/register`;
+
+    const response = await axios.post(url, {
+      email: data.email,
+      ...(isResetting ? {} : { password: data.password }),
+      ...(isLogin ? {} : { username: data.username }), // Solo para el registro
+      ...(isLogin ? {} : { phone: data.phone }), // Solo para el registro
+    });
+
+    return response;
+  } catch (error) {
+    if (error.response) {
+      return error.response;
+    } else if (error.request) {
+      return { message: "No se recibió respuesta del servidor" };
+    } else {
+      return { message: "Error al hacer la solicitud" };
+    }
+  }
 };
 
 export const getCategories = async () => {

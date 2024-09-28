@@ -1,9 +1,11 @@
-import { View, Text, TextInput } from "react-native";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import React from "react";
 import * as Icon from "react-native-feather";
 import { themeColors } from "../theme";
+import { useNavigation } from "@react-navigation/native";
 
 export default function SearchBar() {
+  const navigation = useNavigation();
   return (
     <>
       {/*SearchBar*/}
@@ -16,17 +18,19 @@ export default function SearchBar() {
             <Text className="text-gray-600">Mérida, YUC</Text>
           </View>
         </View>
-        <View
-          style={{ backgroundColor: themeColors.bgColor(1) }}
-          className="p-3 rounded-full"
-        >
-          <Icon.Sliders
-            height="20"
-            width="20"
-            strokeWidth={2.5}
-            stroke="white"
-          />
-        </View>
+        <TouchableOpacity onPress={() => navigation.navigate("Auth")}>
+          <View
+            style={{ backgroundColor: themeColors.bgColor(1) }}
+            className="p-3 rounded-full"
+          >
+            <Icon.Sliders
+              height="20"
+              width="20"
+              strokeWidth={2.5}
+              stroke="white"
+            />
+          </View>
+        </TouchableOpacity>
       </View>
     </>
   );

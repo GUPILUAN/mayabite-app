@@ -32,7 +32,11 @@ export default function ProductRow({ product, product_stock }) {
                     }
                   }}
                   className="p-1 rounded-full"
-                  style={{ backgroundColor: themeColors.bgColor(1) }}
+                  style={{
+                    backgroundColor: themeColors.bgColor(
+                      quantity > 0 ? 1 : 0.3
+                    ),
+                  }}
                 >
                   <Icon.Minus
                     strokeWidth={2}
@@ -49,7 +53,11 @@ export default function ProductRow({ product, product_stock }) {
                     }
                   }}
                   className="p-1 rounded-full"
-                  style={{ backgroundColor: themeColors.bgColor(1) }}
+                  style={{
+                    backgroundColor: themeColors.bgColor(
+                      quantity < product_stock ? 1 : 0.3
+                    ),
+                  }}
                 >
                   <Icon.Plus
                     strokeWidth={2}
