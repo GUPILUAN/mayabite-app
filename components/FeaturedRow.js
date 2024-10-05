@@ -2,14 +2,25 @@ import React from "react";
 import { View, ScrollView, Text, TouchableOpacity } from "react-native";
 import { themeColors } from "../theme";
 import StoreCard from "./StoreCard";
+import { useSelector } from "react-redux";
+import { selectTheme } from "../slices/themeSlice";
 
 export default function FeaturedRow({ title, description, stores }) {
+  const theme = useSelector(selectTheme);
+  const isDarkMode = theme === "dark";
+  const bgColor = isDarkMode ? "bg-black" : " bg-white";
+  const textColor = isDarkMode ? "text-white" : "text-gray-500";
+
   return (
-    <View>
+    <View className={bgColor}>
       <View className="flex-row justify-between items-center px-4">
         <View>
-          <Text className="text-lg font-bold">{title}</Text>
-          <Text className="text-gray-500 text-xs">{description}</Text>
+          <Text
+            className={"text-lg font-bold " + (isDarkMode ? "text-white" : "")}
+          >
+            {title}
+          </Text>
+          <Text className={"text-xs " + textColor}>{description}</Text>
         </View>
         <TouchableOpacity>
           <Text style={{ color: themeColors.text }} className="font-semibold">

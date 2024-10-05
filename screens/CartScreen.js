@@ -1,19 +1,68 @@
 import { View, Text, TouchableOpacity, Image, ScrollView } from "react-native";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { themeColors } from "../theme";
 import * as Icon from "react-native-feather";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { selectStore_ } from "../slices/store_Slice";
-import { selectProducts } from "../slices/productsSlice";
+import { StatusBar } from "expo-status-bar";
+import {
+  removeFromCart,
+  selectCartItems,
+  selectCartTotal,
+} from "../slices/cartSlice";
+import { selectTheme } from "../slices/themeSlice";
 
 export default function CartScreen() {
   const navigation = useNavigation();
   let store = useSelector(selectStore_);
-  let products = useSelector(selectProducts);
+  const dispatch = useDispatch();
+  const theme = useSelector(selectTheme);
+  const isDarkMode = theme === "dark";
+  const bgColor = isDarkMode ? "bg-black" : " bg-white";
+  const textColor = isDarkMode ? "text-white" : " text-black";
+
+  const cartItems = useSelector(selectCartItems);
+  const cartTotal = useSelector(selectCartTotal);
+
+  const deliveryFee = 10;
+
+  const [groupedProducts, setGroupedProducts] = useState({});
+
+  useEffect(() => {
+    const products = cartItems.reduce((group, product) => {
+      if (group[product._id]) {
+        // Si ya existe el producto en el grupo, incrementa el contador
+        group[product._id].count += 1;
+      } else {
+        // Si no existe, lo añadimos con un contador inicial de 1
+        group[product._id] = { ...product, count: 1 };
+      }
+
+      return group;
+    }, {});
+
+    setGroupedProducts(products); // Actualiza el estado con los productos agrupados y contadores
+    if (cartItems.length <= 0) {
+      navigation.goBack();
+    }
+  }, [cartItems]);
+
+  const handleDecrease = (product) => {
+    dispatch(removeFromCart({ id: product._id }));
+    const products = cartItems.reduce((group) => {
+      if (group[product._id]) {
+        // Si ya existe el producto en el grupo, incrementa el contador
+        group[product._id].count -= 1;
+      }
+      return group;
+    }, {});
+    setGroupedProducts(products);
+  };
 
   return (
-    <View className="bg-white flex-1">
+    <View className={"flex-1 " + bgColor}>
+      <StatusBar style="auto" />
       {/* go back */}
       <View className="relative py-4 shadow-sm">
         <TouchableOpacity
@@ -24,8 +73,16 @@ export default function CartScreen() {
           <Icon.ArrowLeft strokeWidth={3} stroke={"white"} />
         </TouchableOpacity>
         <View>
-          <Text className="text-center text-xl font-bold">Your cart</Text>
-          <Text className="text-center text-gray-500">{store.name}</Text>
+          <Text className={"text-center text-xl font-bold " + textColor}>
+            Your cart
+          </Text>
+          <Text
+            className={
+              "text-center " + (isDarkMode ? "text-gray-200" : "text-gray-500")
+            }
+          >
+            {store.name}
+          </Text>
         </View>
       </View>
       {/* delivery time */}
@@ -37,9 +94,12 @@ export default function CartScreen() {
           source={require("../assets/images/deliveryguy.png")}
           className=" w-20 h-20 rounded-full"
         />
-        <Text className="flex-1 pl-4">Delivery in...</Text>
+        <Text className={"flex-1 pl-4 " + textColor}>Delivery in...</Text>
         <TouchableOpacity>
-          <Text className="font-bold" style={{ color: themeColors.bgColor(1) }}>
+          <Text
+            className={"font-bold " + textColor}
+            style={{ color: themeColors.bgColor(1) }}
+          >
             Change
           </Text>
         </TouchableOpacity>
@@ -50,42 +110,54 @@ export default function CartScreen() {
         contentContainerStyle={{
           paddingBottom: 50,
         }}
-        className="bg-white pt-5"
+        className={"pt-5 " + bgColor}
       >
-        {products != null &&
-          products.map((product, index) => {
-            return (
-              <View
-                key={index}
-                className="flex-row items-center space-x-3 py-2 px-4 bg-white rounded-3xl mx-2 mb-3 shadow-md"
+        {Object.entries(groupedProducts).map(([key, product]) => {
+          return (
+            <View
+              key={key}
+              className={
+                "flex-row items-center space-x-3 py-2 px-4 rounded-3xl mx-2 mb-3 shadow-md " +
+                (isDarkMode ? "bg-gray-800" : "bg-white")
+              }
+            >
+              <Text
+                className={"font-bold " + textColor}
+                style={themeColors.bgColor(1)}
               >
-                <Text className="font-bold" style={themeColors.bgColor(1)}>
-                  2 x
-                </Text>
-                <Image
-                  className="h-14 w-14 rounded-full"
-                  source={{ uri: `data:image/jpeg;base64,${product.image}` }}
+                {product.count}x
+              </Text>
+              <Image
+                className="h-14 w-14 rounded-full"
+                source={{ uri: `data:image/jpeg;base64,${product.image}` }}
+              />
+              <Text
+                className={
+                  "flex-1 font-bold " +
+                  (isDarkMode ? "text-gray-200" : "text-gray-700")
+                }
+              >
+                {product.name}
+              </Text>
+              <Text className={"font-semibold text-base " + textColor}>
+                ${product.price}
+              </Text>
+
+              <TouchableOpacity
+                className="p-1 rounded-full"
+                style={{ backgroundColor: themeColors.bgColor(1) }}
+                onPress={() => handleDecrease(product)}
+              >
+                <Icon.Minus
+                  strokeWidth={2}
+                  height={20}
+                  width={20}
+                  stroke={"white"}
                 />
-                <Text className="flex-1 font-bold text-gray-700">
-                  {product.name}
-                </Text>
-                <Text className="font-semibold text-base">
-                  ${product.price}
-                </Text>
-                <TouchableOpacity
-                  className="p-1 rounded-full"
-                  style={{ backgroundColor: themeColors.bgColor(1) }}
-                >
-                  <Icon.Minus
-                    strokeWidth={2}
-                    height={20}
-                    width={20}
-                    stroke={"white"}
-                  />
-                </TouchableOpacity>
-              </View>
-            );
-          })}
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </ScrollView>
       {/*Totals */}
       <View
@@ -93,16 +165,36 @@ export default function CartScreen() {
         className="p-6 px-8 rounded-t-3xl space-y-4"
       >
         <View className="flex-row justify-between">
-          <Text className="text-gray-700 ">Subtotal:</Text>
-          <Text className="text-gray-700 ">$20</Text>
+          <Text className={isDarkMode ? "text-gray-200" : "text-gray-700"}>
+            Subtotal:
+          </Text>
+          <Text className={isDarkMode ? "text-gray-200" : "text-gray-700"}>
+            ${cartTotal}
+          </Text>
         </View>
         <View className="flex-row justify-between">
-          <Text className="text-gray-700 ">Delivery Fee:</Text>
-          <Text className="text-gray-700 ">$2</Text>
+          <Text className={isDarkMode ? "text-gray-200" : "text-gray-700"}>
+            Delivery Fee:
+          </Text>
+          <Text className={isDarkMode ? "text-gray-200" : "text-gray-700"}>
+            ${deliveryFee}
+          </Text>
         </View>
         <View className="flex-row justify-between">
-          <Text className="text-gray-700 font-extrabold">Total:</Text>
-          <Text className="text-gray-700 font-extrabold ">$22</Text>
+          <Text
+            className={
+              isDarkMode ? "text-gray-200" : "text-gray-700 " + "font-extrabold"
+            }
+          >
+            Total:
+          </Text>
+          <Text
+            className={
+              isDarkMode ? "text-gray-200" : "text-gray-700 " + "font-extrabold"
+            }
+          >
+            ${cartTotal + deliveryFee}
+          </Text>
         </View>
         <View>
           <TouchableOpacity

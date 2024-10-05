@@ -1,18 +1,26 @@
 {
   "expo": {
-    "name": "mayabite-app",
+    "name": "Mayabite",
     "slug": "mayabite-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.jpg",
+    "userInterfaceStyle": "automatic",
+
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#00000"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gupiluan.mayabite",
+      "infoPlist": {
+        "NSCameraUsageDescription": "We need access to your camera to take pictures.",
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library to save pictures.",
+        "NSLocationWhenInUseUsageDescription": "We need access to your location",
+        "NSFaceIDUsageDescription": "We need to access to your FaceID"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +36,14 @@
         "projectId": "34fb4533-3ae0-4783-8375-68051ed32fbf"
       }
     },
-    "owner": "luisgtz15"
+    "owner": "luisgtz15",
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow Mayabite to access your Face ID biometric data."
+        }
+      ]
+    ]
   }
 }

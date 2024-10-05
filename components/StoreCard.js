@@ -1,24 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import { themeColors } from "../theme";
-import { getStore } from "../constants";
+
 import * as Icon from "react-native-feather";
 import { useNavigation } from "@react-navigation/native";
+import { useSelector } from "react-redux";
+import { selectTheme } from "../slices/themeSlice";
 
 export default function StoreCard({ item }) {
-  /* const [store, setStore] = useState(null);
-
-  useEffect(() => {
-    const fetchStore = async () => {
-      const data = await getStore(item.id);
-      setStore(data);
-    };
-
-    fetchStore();
-  }, []);
-*/
-
   const navigation = useNavigation();
+  const theme = useSelector(selectTheme);
+  const isDarkMode = theme === "dark";
+  const bgColor = isDarkMode ? "bg-gray-900" : " bg-white";
+  const textColor = isDarkMode ? "text-white" : "text-gray-700";
 
   return (
     <View
@@ -26,20 +20,26 @@ export default function StoreCard({ item }) {
         shadowColor: themeColors.bgColor(0.2),
         shadowRadius: 7,
       }}
-      className="mr-6 bg-white rounded-3xl shadow-lg"
+      className={"mr-6 rounded-3xl shadow-lg " + bgColor}
     >
       {item != null ? (
         <>
           <TouchableOpacity
             onPress={() => navigation.navigate("Store", { ...item })}
-            className="bg-white rounded-lg p-3 mr-2"
+            className={"rounded-lg p-3 mr-2 " + bgColor}
           >
             <Image
               className="h-36 w-64 rounded-3xl"
               source={{ uri: `data:image/jpeg;base64,${item.image}` }}
             />
             <View className="px-3 pb-4 space-y-2">
-              <Text className="text-lg font-bold pt-2">{item.name}</Text>
+              <Text
+                className={
+                  "text-lg font-bold pt-2 " + (isDarkMode ? "text-white" : "")
+                }
+              >
+                {item.name}
+              </Text>
               <View className="flex-row items-center space-x-1">
                 <Image
                   source={require("../assets/images/star.png")}
@@ -51,14 +51,22 @@ export default function StoreCard({ item }) {
                 >
                   {item.stars.toFixed(1)}
                 </Text>
-                <Text className="text-gray-700">
+                <Text className={textColor}>
                   ({item.reviews} reviews) •{" "}
-                  <Text className="font-semibold">{item.category}</Text>
+                  <Text
+                    className={
+                      "font-semibold " + (isDarkMode ? "text-white" : "")
+                    }
+                  >
+                    {item.category}
+                  </Text>
                 </Text>
               </View>
               <View className="flex-row items-center space-x-1">
                 <Icon.MapPin color="gray" width="15" height="15" />
-                <Text className="text-gray-700 text-xs">• {item.location}</Text>
+                <Text className={"text-xs " + textColor}>
+                  • {item.location}
+                </Text>
               </View>
             </View>
           </TouchableOpacity>

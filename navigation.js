@@ -11,21 +11,26 @@ import OrderPreparingScreen from "./screens/OrderPreparingScreen";
 import DeliveryScreen from "./screens/DeliveryScreen";
 import AuthScreen from "./screens/AuthScreen";
 import TestScreen from "./screens/TestScreen";
+import ChatScreen from "./screens/ChatScreen";
 
 export default function Navigation() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        screenOptions={{ headerShown: false }}
         initialRouteName="Auth"
+        screenOptions={{ headerShown: false }}
       >
         <Stack.Screen
           name="Auth"
           component={AuthScreen}
-          options={{ headerShown: false }}
+          options={{ animationTypeForReplace: "pop" }}
         />
         <Stack.Screen name="Test" component={TestScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ gestureEnabled: false, animation: "slide_from_right" }}
+        />
         <Stack.Screen name="Store" component={StoreScreen} />
         <Stack.Screen
           name="Cart"
@@ -41,6 +46,11 @@ export default function Navigation() {
           name="Delivery"
           options={{ presentation: "fullScreenModal" }}
           component={DeliveryScreen}
+        />
+        <Stack.Screen
+          name="Chat"
+          options={{ presentation: "modal" }}
+          component={ChatScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

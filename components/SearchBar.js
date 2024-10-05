@@ -2,23 +2,66 @@ import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import React from "react";
 import * as Icon from "react-native-feather";
 import { themeColors } from "../theme";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, CommonActions } from "@react-navigation/native";
+import { removeTokens } from "../constants";
+import { useSelector } from "react-redux";
+import { selectTheme } from "../slices/themeSlice";
 
 export default function SearchBar() {
   const navigation = useNavigation();
+  const theme = useSelector(selectTheme);
+  const isDarkMode = theme === "dark";
+  const bgColor = isDarkMode ? "bg-gray-900" : " bg-white";
+  const textColor = isDarkMode ? "text-white" : "text-gray-700";
+  const borderColor = isDarkMode ? "border-white" : "border-gray-400";
+
   return (
     <>
       {/*SearchBar*/}
-      <View className="flex-row items-center space-x-2 px-4 pb-2">
-        <View className="flex-row flex-1 items-center p-3 rounded-full border border-gray-300">
-          <Icon.Search height="25" width="25" stroke="gray" />
-          <TextInput placeholder="Buscar" className="ml-2 flex-1" />
-          <View className="flex-row items-center space-x-1 border-0 border-l-2 pl-2 border-gray-300">
-            <Icon.MapPin height="20" width="20" stroke="gray" />
-            <Text className="text-gray-600">Mérida, YUC</Text>
+      <View className="flex-row items-center space-x-2 px-4 pb-2 ">
+        <View
+          className={
+            "flex-row flex-1 items-center p-3 rounded-full border " +
+            borderColor
+          }
+        >
+          <Icon.Search
+            height="25"
+            width="25"
+            stroke={isDarkMode ? "white" : "gray"}
+          />
+          <TextInput
+            placeholder="Buscar"
+            placeholderTextColor="gray"
+            className={"ml-2 flex-1 " + textColor}
+          />
+          <View
+            className={
+              "flex-row items-center space-x-1 border-0 border-l-2 pl-2 " +
+              borderColor
+            }
+          >
+            <Icon.MapPin
+              height="20"
+              width="20"
+              stroke={isDarkMode ? "white" : "gray"}
+            />
+            <Text className={isDarkMode ? "text-white" : "text-gray-600"}>
+              Mérida, YUC
+            </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate("Auth")}>
+        <TouchableOpacity
+          onPress={async () => {
+            await removeTokens();
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: "Auth" }],
+              })
+            );
+          }}
+        >
           <View
             style={{ backgroundColor: themeColors.bgColor(1) }}
             className="p-3 rounded-full"

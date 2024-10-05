@@ -2,9 +2,18 @@ import React, { useEffect, useState } from "react";
 import { View, ScrollView, Text, TouchableOpacity, Image } from "react-native";
 import { getCategories } from "../constants";
 
+import { useSelector } from "react-redux";
+import { selectTheme } from "../slices/themeSlice";
+
 export default function Categories() {
   const [categories, setCategories] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const theme = useSelector(selectTheme);
+  const isDarkMode = theme === "dark";
+  const textColor = isDarkMode ? "text-gray-200" : "text-gray-500";
+  const selected = isDarkMode ? "bg-gray-200" : "bg-gray-700";
+  const nonSelected = isDarkMode ? "bg-gray-700" : "bg-gray-200";
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -34,11 +43,15 @@ export default function Categories() {
                   className="flex justify-center items-center mr-6"
                 >
                   <TouchableOpacity
-                    onPress={() => setSelectedCategory(category._id)}
+                    onPress={() => {
+                      if (selectedCategory !== category._id) {
+                        setSelectedCategory(category._id);
+                      } else {
+                        setSelectedCategory(null);
+                      }
+                    }}
                     className={`p-1 rounded-full shadow ${
-                      category._id === selectedCategory
-                        ? "bg-gray-600"
-                        : "bg-gray-200"
+                      category._id === selectedCategory ? selected : nonSelected
                     }`}
                   >
                     <Image
@@ -49,8 +62,8 @@ export default function Categories() {
                   <Text
                     className={`text-sm ${
                       category._id === selectedCategory
-                        ? "font-semibold text-gray-800"
-                        : "text-gray-500"
+                        ? "font-semibold " + textColor
+                        : textColor
                     }`}
                   >
                     {category.name}

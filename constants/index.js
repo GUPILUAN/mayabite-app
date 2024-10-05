@@ -10,6 +10,7 @@ import postresImagen from "../assets/images/categories/Postres.png";
 import pastaImagen from "../assets/images/categories/Pasta.png";
 import mariscosImagen from "../assets/images/categories/Mariscos.png";
 import axios from "axios";
+import * as SecureStore from "expo-secure-store";
 
 // Importa todas las imágenes necesarias
 
@@ -47,6 +48,43 @@ export const loginUser = async (data, isResetting, isLogin) => {
     } else {
       return { message: "Error al hacer la solicitud" };
     }
+  }
+};
+
+// Save tokens
+export const storeToken = async (accessToken) => {
+  try {
+    await SecureStore.setItemAsync("accessToken", accessToken);
+  } catch (e) {
+    console.error("Failed to store tokens securely", e);
+  }
+};
+
+// Get tokens
+export const getAccessToken = async () => {
+  try {
+    return await SecureStore.getItemAsync("accessToken");
+  } catch (e) {
+    console.error("Failed to retrieve access token", e);
+    return null;
+  }
+};
+
+export const getRefreshToken = async () => {
+  try {
+    return await SecureStore.getItemAsync("refreshToken");
+  } catch (e) {
+    console.error("Failed to retrieve refresh token", e);
+    return null;
+  }
+};
+
+// Remove tokens
+export const removeTokens = async () => {
+  try {
+    await SecureStore.deleteItemAsync("accessToken");
+  } catch (e) {
+    console.error("Failed to remove tokens securely", e);
   }
 };
 
@@ -143,6 +181,23 @@ export const getProduct = async (product_id) => {
 export const getProducts = async (store_id) => {
   try {
     const response = await fetch(`${apiMayabite}/product/getfrom/${store_id}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    return null;
+  }
+};
+
+export const getProductsS = async (store_id) => {
+  try {
+    const response = await fetch(`${apiMayabite}/store/${store_id}`);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
