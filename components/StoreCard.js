@@ -19,12 +19,14 @@ export default function StoreCard({ item }) {
       style={{
         shadowColor: themeColors.bgColor(0.2),
         shadowRadius: 7,
+        elevation: 5,
       }}
-      className={"mr-6 rounded-3xl shadow-lg " + bgColor}
+      className={"mb-3 mt-1 mr-6 rounded-3xl shadow-lg " + bgColor}
     >
       {item != null ? (
         <>
           <TouchableOpacity
+            style={{ elevation: 5 }}
             onPress={() => navigation.navigate("Store", { ...item })}
             className={"rounded-lg p-3 mr-2 " + bgColor}
           >
@@ -40,7 +42,10 @@ export default function StoreCard({ item }) {
               >
                 {item.name}
               </Text>
-              <View className="flex-row items-center space-x-1">
+              <View
+                className="flex-row items-center space-x-1"
+                style={{ elevation: 5 }}
+              >
                 <Image
                   source={require("../assets/images/star.png")}
                   className="h-4 w-4"
@@ -62,7 +67,10 @@ export default function StoreCard({ item }) {
                   </Text>
                 </Text>
               </View>
-              <View className="flex-row items-center space-x-1">
+              <View
+                className="flex-row items-center space-x-1"
+                style={{ elevation: 5 }}
+              >
                 <Icon.MapPin color="gray" width="15" height="15" />
                 <Text className={"text-xs " + textColor}>
                   • {item.location}

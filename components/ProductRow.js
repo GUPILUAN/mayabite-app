@@ -39,6 +39,7 @@ function ProductRow({ product, product_enabled }) {
   if (!product) {
     return (
       <View
+        style={{ elevation: 10 }}
         className={
           "flex-row items-center justify-center p-3 rounded-3xl shadow-2xl mb-3 mx-2 " +
           bgColor
@@ -51,6 +52,7 @@ function ProductRow({ product, product_enabled }) {
 
   return (
     <View
+      style={{ elevation: 10 }}
       className={
         "flex-row items-center p-3 rounded-3xl shadow-2xl mb-3 mx-2 " + bgColor
       }
@@ -86,6 +88,7 @@ function ProductRow({ product, product_enabled }) {
                 backgroundColor: themeColors.bgColor(
                   itemsInCart.length > 0 ? 1 : 0.3
                 ),
+                elevation: 2,
               }}
               disabled={!itemsInCart.length || !product_enabled}
             >
@@ -102,6 +105,7 @@ function ProductRow({ product, product_enabled }) {
               className="p-1 rounded-full"
               style={{
                 backgroundColor: themeColors.bgColor(product_enabled ? 1 : 0.3),
+                elevation: 2,
               }}
               disabled={!product_enabled}
             >
