@@ -4,6 +4,7 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { themeColors } from "../theme";
@@ -52,10 +53,10 @@ function ProductRow({ product, product_enabled }) {
 
   return (
     <View
-      style={{ elevation: 10 }}
       className={
         "flex-row items-center p-3 rounded-3xl shadow-2xl mb-3 mx-2 " + bgColor
       }
+      style={{ elevation: 5 }}
     >
       <Image
         className="rounded-3xl"
@@ -77,18 +78,23 @@ function ProductRow({ product, product_enabled }) {
           <Text className={textColor}>{product.description}</Text>
         </View>
         <View className="flex-row justify-between pl-3 items-center">
-          <Text className={"text-lg font-bold " + textColor}>
+          <Text className={"text-lg font-bold text-center " + textColor}>
             ${product.price}
           </Text>
           <View className="flex-row items-center">
             <TouchableOpacity
               onPress={handleDecrease}
-              className="p-1 rounded-full"
+              className="p-1 rounded-full "
               style={{
                 backgroundColor: themeColors.bgColor(
                   itemsInCart.length > 0 ? 1 : 0.3
                 ),
-                elevation: 2,
+                elevation: product_enabled && itemsInCart.length > 0 ? 2 : 0,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 0.5 },
+                shadowOpacity:
+                  product_enabled && itemsInCart.length > 0 ? 0.5 : 0,
+                shadowRadius: product_enabled && itemsInCart.length > 0 ? 2 : 0,
               }}
               disabled={!itemsInCart.length || !product_enabled}
             >
@@ -105,7 +111,11 @@ function ProductRow({ product, product_enabled }) {
               className="p-1 rounded-full"
               style={{
                 backgroundColor: themeColors.bgColor(product_enabled ? 1 : 0.3),
-                elevation: 2,
+                elevation: product_enabled ? 2 : 0,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 0.5 },
+                shadowOpacity: product_enabled ? 0.5 : 0,
+                shadowRadius: product_enabled ? 2 : 0,
               }}
               disabled={!product_enabled}
             >

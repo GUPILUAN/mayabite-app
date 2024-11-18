@@ -2,12 +2,11 @@ import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import React from "react";
 import * as Icon from "react-native-feather";
 import { themeColors } from "../theme";
-import { useNavigation, CommonActions } from "@react-navigation/native";
-import { removeTokens } from "../constants";
+import { useNavigation } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import { selectTheme } from "../slices/themeSlice";
 
-export default function SearchBar() {
+export default function SearchBar({ location }) {
   const navigation = useNavigation();
   const theme = useSelector(selectTheme);
   const isDarkMode = theme === "dark";
@@ -47,26 +46,20 @@ export default function SearchBar() {
               stroke={isDarkMode ? "white" : "gray"}
             />
             <Text className={isDarkMode ? "text-white" : "text-gray-600"}>
-              Mérida, YUC
+              {location}
             </Text>
           </View>
         </View>
         <TouchableOpacity
           onPress={async () => {
-            await removeTokens();
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: "Auth" }],
-              })
-            );
+            navigation.navigate("Settings");
           }}
         >
           <View
             style={{ backgroundColor: themeColors.bgColor(1) }}
             className="p-3 rounded-full"
           >
-            <Icon.Sliders
+            <Icon.Settings
               height="20"
               width="20"
               strokeWidth={2.5}

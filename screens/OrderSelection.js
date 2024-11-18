@@ -1,101 +1,50 @@
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  Alert,
-} from "react-native";
-import React, { useState, useEffect } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { View, Text, Image, Alert } from "react-native";
+import React from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useDispatch, useSelector } from "react-redux";
+import { selectTheme } from "../slices/themeSlice";
 import { themeColors } from "../theme";
 import * as Icon from "react-native-feather";
-import { useDispatch, useSelector } from "react-redux";
-import { selectStore_ } from "../slices/store_Slice";
 import { StatusBar } from "expo-status-bar";
-import {
-  removeFromCart,
-  selectCartItems,
-  selectCartTotal,
-} from "../slices/cartSlice";
-import { selectTheme } from "../slices/themeSlice";
-import { postData, retrieveData } from "../functions/apiCalls";
-import { setOrderActive } from "../slices/orderActiveSlice";
+import { TouchableOpacity } from "react-native";
+import { ScrollView } from "react-native";
+import { putData } from "../functions/apiCalls";
+import { useSocket } from "../context/SocketContext";
+import { selectUser } from "../slices/userSlice";
 import { selectLocation } from "../slices/locationSlice";
-import { checkIfInsideArea, getLocation } from "../functions/userSettings";
 
-export default function CartScreen() {
-  const navigation = useNavigation();
-  let store = useSelector(selectStore_);
+export default function OrderSelection() {
+  const { params } = useRoute();
+  let order = params;
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   const theme = useSelector(selectTheme);
   const isDarkMode = theme === "dark";
   const bgColor = isDarkMode ? "bg-black" : " bg-white";
   const textColor = isDarkMode ? "text-white" : " text-black";
-
-  const cartItems = useSelector(selectCartItems);
-  const cartTotal = useSelector(selectCartTotal);
-
-  const deliveryFee = 10;
-
-  const [groupedProducts, setGroupedProducts] = useState({});
-
-  useEffect(() => {
-    getLocation(dispatch);
-    const products = cartItems.reduce((group, product) => {
-      if (group[product._id]) {
-        // Si ya existe el producto en el grupo, incrementa el contador
-        group[product._id].count += 1;
-      } else {
-        // Si no existe, lo añadimos con un contador inicial de 1
-        group[product._id] = { ...product, count: 1 };
-      }
-
-      return group;
-    }, {});
-
-    setGroupedProducts(products); // Actualiza el estado con los productos agrupados y contadores
-    if (cartItems.length <= 0) {
-      navigation.goBack();
-    }
-  }, [cartItems]);
-
-  const handleDecrease = (product) => {
-    dispatch(removeFromCart({ id: product._id }));
-    const products = cartItems.reduce((group) => {
-      if (group[product._id]) {
-        // Si ya existe el producto en el grupo, incrementa el contador
-        group[product._id].count -= 1;
-      }
-      return group;
-    }, {});
-    setGroupedProducts(products);
+  const socket = useSocket();
+  const user = useSelector(selectUser);
+  const location = useSelector(selectLocation);
+  const error_accepting = () => {
+    Alert.alert("No se pudo aceptar esta orden :c", [
+      {
+        text: "OK",
+        style: "default",
+        onPress: () => navigation.goBack(),
+      },
+    ]);
   };
 
-  const location = useSelector(selectLocation);
-
-  const handleCreatingOrder = async () => {
-    if (checkIfInsideArea(location)) {
-      const response = await postData("/order/create", {
-        products: Object.entries(groupedProducts),
-        total: cartTotal + deliveryFee,
-        store: store._id,
-        destiny: location,
+  const handleAcceptOrder = async () => {
+    const response = await putData("/order/accept", { order_id: order._id });
+    if (response.success && socket.connected) {
+      socket.emit("send_my_location", {
+        user_id: user._id,
+        location: location,
       });
-      if (response.success) {
-        const newOrder = await retrieveData(`/order/${response.id}`);
-        if (newOrder) {
-          dispatch(setOrderActive(newOrder));
-          navigation.navigate("OrderPreparing");
-        }
-      } else {
-        alert(response.message);
-      }
+      navigation.goBack();
     } else {
-      Alert.alert(
-        "IMPOSIBLE",
-        "Necesitas estar dentro del campus para realizar ordenes"
-      );
+      error_accepting();
     }
   };
 
@@ -120,7 +69,7 @@ export default function CartScreen() {
               "text-center " + (isDarkMode ? "text-gray-200" : "text-gray-500")
             }
           >
-            {store.name}
+            {order._id}
           </Text>
         </View>
       </View>
@@ -151,7 +100,7 @@ export default function CartScreen() {
         }}
         className={"pt-5 " + bgColor}
       >
-        {Object.entries(groupedProducts).map(([key, product]) => {
+        {order.products.map(([key, product]) => {
           return (
             <View
               key={key}
@@ -181,19 +130,6 @@ export default function CartScreen() {
               <Text className={"font-semibold text-base " + textColor}>
                 ${product.price}
               </Text>
-
-              <TouchableOpacity
-                className="p-1 rounded-full"
-                style={{ backgroundColor: themeColors.bgColor(1) }}
-                onPress={() => handleDecrease(product)}
-              >
-                <Icon.Minus
-                  strokeWidth={2}
-                  height={20}
-                  width={20}
-                  stroke={"white"}
-                />
-              </TouchableOpacity>
             </View>
           );
         })}
@@ -208,7 +144,7 @@ export default function CartScreen() {
             Subtotal:
           </Text>
           <Text className={isDarkMode ? "text-gray-200" : "text-gray-700"}>
-            ${cartTotal}
+            ${order.total}
           </Text>
         </View>
         <View className="flex-row justify-between">
@@ -216,7 +152,7 @@ export default function CartScreen() {
             Delivery Fee:
           </Text>
           <Text className={isDarkMode ? "text-gray-200" : "text-gray-700"}>
-            ${deliveryFee}
+            ${10}
           </Text>
         </View>
         <View className="flex-row justify-between">
@@ -232,17 +168,17 @@ export default function CartScreen() {
               isDarkMode ? "text-gray-200" : "text-gray-700 " + "font-extrabold"
             }
           >
-            ${cartTotal + deliveryFee}
+            ${order.total}
           </Text>
         </View>
         <View>
           <TouchableOpacity
-            onPress={handleCreatingOrder}
             style={{ backgroundColor: themeColors.bgColor(1) }}
             className="p-3 rounded-full"
+            onPress={handleAcceptOrder}
           >
             <Text className="text-white text-center font-bold text-lg">
-              Place Order
+              Aceptar Orden
             </Text>
           </TouchableOpacity>
         </View>

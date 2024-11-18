@@ -1,5 +1,5 @@
 import { View, Text, Image, TouchableOpacity, Alert } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { selectStore_ } from "../slices/store_Slice";
 import { useNavigation } from "@react-navigation/native";
@@ -8,6 +8,10 @@ import { themeColors } from "../theme";
 import * as Icon from "react-native-feather";
 import { emptyCart } from "../slices/cartSlice";
 import { selectTheme } from "../slices/themeSlice";
+import { selectOrderActive } from "../slices/orderActiveSlice";
+import { putData, retrieveData } from "../functions/apiCalls";
+import { StatusBar } from "expo-status-bar";
+import { useSocket } from "../context/SocketContext";
 
 export default function DeliveryScreen() {
   const store = useSelector(selectStore_);
@@ -15,48 +19,99 @@ export default function DeliveryScreen() {
   const dispatch = useDispatch();
   const theme = useSelector(selectTheme);
   const isDarkMode = theme === "dark";
-  const bgColor = isDarkMode ? "bg-black" : " bg-white";
-  const textColor = isDarkMode ? "text-gray-200" : " text-gray-700";
+  const bgColor = isDarkMode ? "bg-black" : "bg-white";
+  const textColor = isDarkMode ? "text-gray-200" : "text-gray-700";
+  const order = useSelector(selectOrderActive);
+
+  const [isInArea, setIsInArea] = useState(false);
+  const targetLatitude = 21.11106;
+  const targetLongitude = -89.61235;
+  const socket = useSocket();
+
+  const [delivery_man, setDelivery_man] = useState({});
+
+  const [delivery_man_location, setDelivery_man_location] = useState(null);
+
+  useEffect(() => {
+    const delivery = async () => {
+      const response = await retrieveData(`/user/${order.delivery_man}`);
+      if (response) setDelivery_man(response);
+    };
+    delivery();
+  }, []);
+
+  useEffect(() => {
+    socket.on("delivery_man_location", (data) => {
+      if (data.userId === order.delivery_man) {
+        setDelivery_man_location(data.location);
+      }
+    });
+    socket.on("handleOrder", (data) => {
+      if (data.order.status === "delivered" && data.order._id === order._id) {
+        dispatch(emptyCart());
+        navigation.navigate("Review", store);
+      }
+    });
+    return () => {
+      socket.off("handleOrder");
+      socket.off("delivery_man_location");
+    };
+  }, [socket]);
 
   const cancelOrder = () => {
-    Alert.alert(
-      "Cancelar orden", // Título de la alerta
-      "Estas seguro de cancelar tu orden?", // Mensaje de la alerta
-      [
-        {
-          text: "Quedarse",
-          style: "default", // Botón de confirmación
-        },
-        {
-          text: "Cancelar Orden",
-          style: "destructive", // Botón de confirmación
-          onPress: () => {
-            dispatch(emptyCart());
+    Alert.alert("Cancelar orden", "Estas seguro de cancelar tu orden?", [
+      {
+        text: "Quedarse",
+        style: "default",
+      },
+      {
+        text: "Cancelar Orden",
+        style: "destructive",
+        onPress: async () => {
+          dispatch(emptyCart());
+          const response = await putData(
+            `/order/changestatus/canceled/${order._id}`,
+            {}
+          );
+          if (response.success) {
             navigation.navigate("Home");
-          },
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
+
   return (
     <View className="flex-1">
+      <StatusBar style={"auto"} />
       <MapView
         initialRegion={{
-          latitude: 21.11114,
-          longitude: -89.6117,
+          latitude: targetLatitude,
+          longitude: targetLongitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
         className="flex-1"
         mapType="standard"
+        //provider={PROVIDER_GOOGLE}
       >
         <Marker
+          image={require("../assets/images/stores/restaurant.png")}
           coordinate={{
-            latitude: 21.11114,
-            longitude: -89.6117,
+            latitude: targetLatitude,
+            longitude: targetLongitude,
           }}
           title={store.name}
           description={store.description}
+          pinColor={themeColors.bgColor(1)}
+        />
+        <Marker
+          coordinate={{
+            latitude: delivery_man_location?.latitude,
+            longitude: delivery_man_location?.longitude,
+          }}
+          image={require("../assets/images/deliveryguy.png")}
+          title={"Tu mayabito"}
           pinColor={themeColors.bgColor(1)}
         />
       </MapView>
@@ -64,13 +119,13 @@ export default function DeliveryScreen() {
         <View className="flex-row justify-between px-5 pt-10">
           <View>
             <Text className={"text-lg font-semibold " + textColor}>
-              Estimated Arrival
+              {isInArea ? "¡Estás dentro del área!" : "Te estás acercando..."}
             </Text>
             <Text className={"text-3xl font-extrabold " + textColor}>
-              20 minutes
+              Estimated Arrival
             </Text>
             <Text className={"mt-2 font-semibold " + textColor}>
-              Your order is own its way!
+              Your order is on its way!
             </Text>
           </View>
           <Image
@@ -92,13 +147,15 @@ export default function DeliveryScreen() {
             />
           </View>
           <View className="flex-1 ml-3">
-            <Text className="text-lg font-bold text-white">User</Text>
+            <Text className="text-lg font-bold text-white">
+              {delivery_man?.username}
+            </Text>
             <Text className="font-semibold text-white">Your delivery man</Text>
           </View>
           <View className="flex-row items-center space-x-3 mr-3">
             <TouchableOpacity
               className="bg-white rounded-full p-2"
-              onPress={() => navigation.navigate("Chat")}
+              onPress={() => navigation.navigate("Chat", order)}
             >
               <Icon.MessageCircle
                 fill={themeColors.bgColor(1)}

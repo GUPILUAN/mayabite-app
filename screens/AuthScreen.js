@@ -15,12 +15,15 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import { themeColors } from "../theme";
-import { getAccessToken, loginUser, storeToken } from "../constants";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import * as LocalAuthentication from "expo-local-authentication";
 import { StatusBar } from "expo-status-bar";
 import { selectTheme } from "../slices/themeSlice";
 import { LinearGradient } from "expo-linear-gradient";
+import { loginUser, refreshToken, retrieveData } from "../functions/apiCalls";
+import { getData, saveData } from "../functions/userKey";
+import { selectSettings } from "../slices/settingsSlice";
+import { setUser } from "../slices/userSlice";
 
 export default function AuthScreen() {
   const navigation = useNavigation();
@@ -29,6 +32,7 @@ export default function AuthScreen() {
     handleSubmit,
     formState: { errors },
   } = useForm();
+
   const [isLogin, setIsLogin] = useState(true); // Cambia entre login y registro
   const [isResetting, setIsResetting] = useState(false); // Para resetear la contraseña
   const [errorMessage, setErrorMessage] = useState("");
@@ -37,6 +41,9 @@ export default function AuthScreen() {
   const [biometrics, setBiometric] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [isLoading, setLoading] = useState(false);
+
+  const settings = useSelector(selectSettings);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     async function loginBiometrics() {
@@ -49,7 +56,14 @@ export default function AuthScreen() {
       const authenticated = await alreadyAuthenticated();
       setIsAuthenticated(authenticated);
       if (isAuthenticated) {
-        await authenticateWithBiometrics();
+        try {
+          await authenticateWithBiometrics();
+        } catch {
+          Alert.alert(
+            "El método por biometricos falló en el servidor",
+            "Inténtalo con tu contraseña por favor."
+          );
+        }
       }
     }
     loginBiometrics();
@@ -63,7 +77,14 @@ export default function AuthScreen() {
 
       if (success) {
         // Redirige al usuario a la pantalla Home
-        navigation.navigate("Home");
+        const access_token = await refreshToken("biometrics_token");
+        if (access_token) {
+          const response = await retrieveData("/user");
+          dispatch(setUser(response));
+          navigation.navigate("Home");
+        } else {
+          throw new Error("No se pudo refrescar el token");
+        }
       } else {
         Alert.alert("Autenticación fallida", "Inténtalo de nuevo.");
       }
@@ -71,8 +92,8 @@ export default function AuthScreen() {
   };
 
   const alreadyAuthenticated = async () => {
-    const token = await getAccessToken();
-    return token !== null && isBiometricAvailable;
+    const token = await getData("access_token");
+    return token !== null && isBiometricAvailable && settings.isBiometricAuth;
   };
 
   const onSubmit = async (data) => {
@@ -85,7 +106,16 @@ export default function AuthScreen() {
     ) {
       if (!isResetting && response.data.access_token) {
         // Almacenar el token de forma segura
-        await storeToken(response.data.access_token);
+        const { access_token, refresh_token } = response.data;
+
+        if (access_token) {
+          await saveData("access_token", access_token);
+        }
+        if (refresh_token) {
+          await saveData("refresh_token", refresh_token);
+        }
+        const user = await retrieveData("/user");
+        dispatch(setUser(user));
         setSuccessMessage("");
         setErrorMessage("");
         navigation.navigate("Home"); // Redirigir a Home si es login exitoso
@@ -124,7 +154,7 @@ export default function AuthScreen() {
       behavior="padding"
       keyboardVerticalOffset={-120}
     >
-      <StatusBar style="auto" />
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className={"flex-1 justify-center p-16 " + bgColor}>
           {isLoading && (

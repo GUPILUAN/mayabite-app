@@ -18,10 +18,10 @@ import { StatusBar } from "expo-status-bar";
 import { useDispatch, useSelector } from "react-redux";
 import { setStore_ } from "../slices/store_Slice";
 import { fetchProducts, selectProducts } from "../slices/productsSlice";
-import { getProductsS } from "../constants";
 import { useSocket } from "../context/SocketContext";
 import { selectTheme } from "../slices/themeSlice";
 import { emptyCart, selectCartItems } from "../slices/cartSlice";
+import { retrieveData } from "../functions/apiCalls";
 
 export default function StoreScreen() {
   const { params } = useRoute();
@@ -43,7 +43,7 @@ export default function StoreScreen() {
 
   useEffect(() => {
     const fetchStoreInventory = async () => {
-      const data = await getProductsS(store._id);
+      const data = await retrieveData(`/store/${store._id}`);
       setStoreInventory(data.inventory);
     };
 
@@ -59,8 +59,6 @@ export default function StoreScreen() {
 
   useEffect(() => {
     socket.on("storeUpdated", ({ document_id, updated_fields }) => {
-      console.log(`Documento actualizado en stores:`, updated_fields);
-      console.log(`ID del documento:`, document_id);
       if (document_id === store._id && updated_fields.inventory) {
         setStoreInventory(updated_fields.inventory);
       }
@@ -163,7 +161,7 @@ export default function StoreScreen() {
             </View>
             <View className="flex-row items-center space-x-1">
               <Icon.MapPin color="gray" width="15" height="15" />
-              <Text className={"text-xs " + textColor}>• {store.location}</Text>
+              <Text className={"text-xs " + textColor}>• {""}</Text>
             </View>
           </View>
           <Text className="text-gray-500 mt-2">{store.description}</Text>
