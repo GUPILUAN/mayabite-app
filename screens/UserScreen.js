@@ -40,7 +40,7 @@ export default function UserScreen() {
   const settings = useSelector(selectSettings);
 
   const handleLogOut = () => {
-    if (ordersActive.length > 0) {
+    if (!hasActiveOrCollectedOrders) {
       const newSettings = { ...settings, isBiometricAuth: false };
       dispatch(loadSettings(newSettings));
       logOut(true);
@@ -81,6 +81,12 @@ export default function UserScreen() {
     setIsSwitchDeliveryOn(user.is_delivery_man);
     setIsSwitchWorkingOn(user.is_working);
   }, [user]);
+
+  const hasActiveOrCollectedOrders =
+    Array.isArray(ordersActive) &&
+    ordersActive.some(
+      (order) => order.status === "active" || order.status === "collected"
+    );
 
   return (
     <SafeAreaView className={"flex-1 " + bgColor}>
@@ -161,14 +167,7 @@ export default function UserScreen() {
                 ios_backgroundColor="#3e3e3e"
                 onValueChange={toggleSwitchWorking}
                 value={isSwitchWorkingOn}
-                disabled={
-                  !user.is_delivery_man ||
-                  ordersActive.filter((order) => {
-                    return (
-                      order.status === "active" || order.status === "collected"
-                    );
-                  }).length > 0
-                }
+                disabled={!user.is_delivery_man || hasActiveOrCollectedOrders}
               />
             </View>
           </View>

@@ -49,8 +49,8 @@ export default function HomeScreen() {
           );
           return;
         }
-        dispatch(setOrderActive(response.orders));
       }
+      dispatch(setOrderActive(response.orders));
     };
     checkIsOrderActive();
   }, []);

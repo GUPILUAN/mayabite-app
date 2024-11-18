@@ -75,7 +75,7 @@ export default function CartScreen() {
   const location = useSelector(selectLocation);
 
   const handleCreatingOrder = async () => {
-    if (checkIfInsideArea(location)) {
+    if (!checkIfInsideArea(location)) {
       const response = await postData("/order/create", {
         products: Object.entries(groupedProducts),
         total: cartTotal + deliveryFee,

@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   Text,
   View,
@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  ActivityIndicator,
 } from "react-native";
 import * as Icon from "react-native-feather";
 import { themeColors } from "../theme";
@@ -28,139 +29,215 @@ import { selectTheme } from "../slices/themeSlice";
 export default function ChatScreen() {
   const socket = useSocket();
   const navigation = useNavigation();
-  const user = useSelector(selectUser);
   const { params } = useRoute();
-  const [order, setOrder] = useState(params);
+  const flatListRef = useRef(null);
+  const user = useSelector(selectUser);
   const theme = useSelector(selectTheme);
-  const isDarkMode = theme === "dark";
-  const bgColor = isDarkMode ? "bg-black" : "bg-[#f2f2ff]";
-  const textColor = isDarkMode ? "text-white" : " text-gray-700";
 
-  const [currentUser] = useState({
-    id: user._id,
-    name: user.username,
-  });
-
-  const [messages, setMessages] = useState([...order.messages]);
-
+  const [order, setOrder] = useState(params);
+  const [messages, setMessages] = useState(params?.messages || []);
   const [inputMessage, setInputMessage] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-
-  function getTime(date) {
-    var hours = date.getHours();
-    var minutes = date.getMinutes();
-    var ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    minutes = minutes < 10 ? "0" + minutes : minutes;
-    return hours + ":" + minutes + " " + ampm;
-  }
-
-  function sendMessage() {
-    if (inputMessage === "") {
-      return setInputMessage("");
-    }
-    let t = getTime(new Date());
-    socket.emit("message", {
-      room: order._id,
-      sender: currentUser.id,
-      message: inputMessage,
-      time: t,
-    });
-    setInputMessage("");
-  }
-
-  // Función para manejar la recarga
-  const onRefresh = () => {
-    setRefreshing(true);
-    // Simular una carga de datos
-    setTimeout(() => {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          sender: user._id,
-          message: "New message after refresh!",
-          time: getTime(new Date()),
-        },
-      ]);
-      setRefreshing(false);
-    }, 2000); // Simula un retraso de 2 segundos
-  };
-
-  const flatListRef = useRef(null);
-
-  useEffect(() => {
-    if (!refreshing) scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    flatListRef.current.scrollToEnd({ animated: true });
-  };
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [otherUser, setOtherUser] = useState({});
+  const [isUserInConversation, setIsUserInConversation] = useState(false);
 
-  useEffect(() => {
-    const getOtherUser = async () => {
-      const response = await retrieveData(
-        `/user/${order.customer === user._id ? order.delivery_man : order.customer}`
-      );
-      setOtherUser(response);
-    };
-    const getOrder = async () => {
-      const response = await retrieveData(`/order/${order._id}`);
-      setOrder(response);
-      setMessages(response.messages);
-    };
-    getOrder();
-    getOtherUser();
+  const isDarkMode = theme === "dark";
+  const bgColor = isDarkMode ? "bg-black" : "bg-[#f2f2ff]";
+  const textColor = isDarkMode ? "text-white" : "text-gray-700";
+
+  const currentUser = {
+    id: user._id,
+    name: user.username,
+  };
+
+  const getTime = useCallback((date) => {
+    const hours = date.getHours() % 12 || 12;
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const ampm = date.getHours() >= 12 ? "PM" : "AM";
+    return `${hours}:${minutes} ${ampm}`;
   }, []);
 
-  const [isUserInConversation, setIsUserInConversation] = useState(false);
+  const sendMessage = useCallback(() => {
+    const trimmedMessage = inputMessage.trim();
+    if (!trimmedMessage) {
+      return setInputMessage("");
+    }
+
+    try {
+      const time = getTime(new Date());
+      socket.emit("message", {
+        room: order._id,
+        sender: currentUser.id,
+        message: trimmedMessage,
+        time: time,
+      });
+      setInputMessage("");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo enviar el mensaje. Inténtalo de nuevo.");
+    }
+  }, [inputMessage, order._id, currentUser.id, socket]);
+
+  const scrollToBottom = useCallback(() => {
+    if (flatListRef.current && messages.length > 0) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages.length]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const [orderData, userData] = await Promise.all([
+        retrieveData(`/order/${order._id}`),
+        retrieveData(
+          `/user/${order.customer === user._id ? order.delivery_man : order.customer}`
+        ),
+      ]);
+
+      setOrder(orderData);
+      setMessages(orderData.messages);
+      setOtherUser(userData);
+    } catch (error) {
+      setError("Error al cargar los datos del chat");
+      Alert.alert("Error", "No se pudieron cargar los mensajes");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [order._id, user._id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
+
   useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!refreshing) {
+      scrollToBottom();
+    }
+  }, [messages, refreshing, scrollToBottom]);
+
+  useEffect(() => {
+    if (!socket) return;
+
     socket.emit("joinConversation", {
       user_id: user._id,
       conversation_id: order._id,
     });
 
-    socket.on("userStatus", (data) => {
+    const handleUserStatus = (data) => {
       if (data.userId !== user._id && data.conversation_id === order._id) {
         setIsUserInConversation(data.isInConversation);
       }
       if (data.count == 2) {
         setIsUserInConversation(true);
       }
-    });
+    };
 
-    socket.on("response", (data) => {
+    const handleResponse = (data) => {
       setMessages((prevMessages) => [...prevMessages, data.data]);
-    });
+    };
+
+    socket.on("userStatus", handleUserStatus);
+    socket.on("response", handleResponse);
 
     return () => {
       socket.emit("leaveConversation", {
         user_id: user._id,
         conversation_id: order._id,
       });
-      socket.off("userStatus");
+      socket.off("userStatus", handleUserStatus);
+      socket.off("response", handleResponse);
     };
-  }, [socket]);
+  }, [socket, user._id, order._id]);
 
-  const makePhoneCall = (phoneNumber) => {
-    Linking.openURL(`tel:${phoneNumber}`).catch((err) =>
-      console.error("Error al intentar hacer la llamada:", err)
+  const makePhoneCall = useCallback((phoneNumber) => {
+    if (!phoneNumber) {
+      return Alert.alert("Error", "Número de teléfono no disponible");
+    }
+
+    Linking.canOpenURL(`tel:${phoneNumber}`)
+      .then((supported) => {
+        if (!supported) {
+          Alert.alert(
+            "Error",
+            "Las llamadas telefónicas no están soportadas en este dispositivo"
+          );
+        } else {
+          return Linking.openURL(`tel:${phoneNumber}`);
+        }
+      })
+      .catch((error) => {
+        Alert.alert("Error", "No se pudo realizar la llamada");
+        console.error("Error al intentar hacer la llamada:", error);
+      });
+  }, []);
+
+  const renderMessage = useCallback(
+    ({ item }) => (
+      <TouchableWithoutFeedback>
+        <View className="mt-1">
+          <View
+            className={`max-w-[80%] ${
+              item.sender === currentUser.id
+                ? "self-end bg-orange-400"
+                : "self-start bg-gray-600"
+            } mx-2 p-2 rounded-xl ${
+              item.sender === currentUser.id ? "rounded-bl-xl" : "rounded-br-xl"
+            }`}
+          >
+            <Text className="text-white text-lg">{item.message}</Text>
+            <Text className="text-[#dfe4ea] text-base self-end">
+              {item.time}
+            </Text>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    ),
+    [currentUser.id]
+  );
+
+  if (isLoading) {
+    return (
+      <SafeAreaView className={`flex-1 justify-center items-center ${bgColor}`}>
+        <ActivityIndicator size="large" color={themeColors.bgColor(1)} />
+      </SafeAreaView>
     );
-  };
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView className={`flex-1 justify-center items-center ${bgColor}`}>
+        <Text className={textColor}>{error}</Text>
+        <TouchableOpacity
+          className="mt-4 px-4 py-2 bg-orange-400 rounded-lg"
+          onPress={fetchData}
+        >
+          <Text className="text-white">Reintentar</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView className={"flex-1 " + bgColor}>
+    <SafeAreaView className={`flex-1 ${bgColor}`}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
         keyboardVerticalOffset={70}
       >
-        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-          <View className={"flex-1 " + bgColor}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View className={`flex-1 ${bgColor}`}>
             {/* Header */}
             <View
-              className="flex-row items-center justify-between px-3 py-2 "
+              className="flex-row items-center justify-between px-3 py-2"
               style={{ backgroundColor: themeColors.bgColor(1) }}
             >
               <View className="flex-row items-center">
@@ -168,17 +245,19 @@ export default function ChatScreen() {
                   className="pr-2"
                   onPress={() => navigation.goBack()}
                 >
-                  <Icon.ArrowLeftCircle stroke={"white"} strokeWidth={2} />
+                  <Icon.ArrowLeftCircle stroke="white" strokeWidth={2} />
                 </TouchableOpacity>
                 <Image
                   className="h-10 w-10 rounded-full mx-2"
                   source={{
-                    uri: "https://randomuser.me/api/portraits/lego/1.jpg",
+                    uri:
+                      otherUser?.avatar ||
+                      "https://randomuser.me/api/portraits/lego/1.jpg",
                   }}
                 />
                 <View className="pl-2 justify-center">
                   <Text className="text-white font-bold text-lg">
-                    {otherUser?.username}
+                    {otherUser?.username || "Usuario"}
                   </Text>
                   <View className="flex-row items-center justify-start">
                     <Text className="text-white font-light">
@@ -187,11 +266,9 @@ export default function ChatScreen() {
                         : "Fuera de la conversación"}{" "}
                     </Text>
                     <Text
-                      className={
-                        (isUserInConversation
-                          ? "text-green-400"
-                          : "text-red-500") + " text-4xl"
-                      }
+                      className={`${
+                        isUserInConversation ? "text-green-400" : "text-red-500"
+                      } text-4xl`}
                     >
                       •
                     </Text>
@@ -208,38 +285,23 @@ export default function ChatScreen() {
 
             {/* Messages */}
             <FlatList
-              className="flex-col-reverse pb-2"
               ref={flatListRef}
               data={messages}
-              renderItem={({ item }) => (
-                <TouchableWithoutFeedback>
-                  <View className="mt-1">
-                    <View
-                      className={`max-w-[${Dimensions.get("screen").width * 0.8}px] ${
-                        item.sender === currentUser.id
-                          ? "self-end bg-orange-400"
-                          : "self-start bg-gray-600"
-                      } mx-2 p-2 rounded-xl ${
-                        item.sender === currentUser.id
-                          ? "rounded-bl-xl"
-                          : "rounded-br-xl"
-                      }`}
-                    >
-                      <Text className="text-white text-lg">{item.message}</Text>
-                      <Text className="text-[#dfe4ea] text-base self-end">
-                        {item.time}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableWithoutFeedback>
-              )}
+              renderItem={renderMessage}
+              keyExtractor={(item, index) => `${item._id || index}`}
+              className="flex-col-reverse pb-2"
               refreshControl={
                 <RefreshControl
                   refreshing={refreshing}
-                  onRefresh={null}
-                  colors={["#3a6ee8"]}
+                  onRefresh={onRefresh}
+                  colors={[themeColors.bgColor(1)]}
                 />
               }
+              onContentSizeChange={scrollToBottom}
+              onLayout={scrollToBottom}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={10}
             />
 
             {/* Message Input */}
@@ -248,15 +310,23 @@ export default function ChatScreen() {
                 <TextInput
                   value={inputMessage}
                   className="h-10 flex-1 px-2"
-                  placeholder="Message"
-                  onChangeText={(text) => setInputMessage(text)}
-                  onSubmitEditing={() => sendMessage()}
+                  placeholder="Escribe un mensaje..."
+                  placeholderTextColor="#666"
+                  onChangeText={setInputMessage}
+                  onSubmitEditing={sendMessage}
+                  multiline={false}
+                  returnKeyType="send"
                 />
                 <TouchableOpacity
                   className="px-2 justify-center"
-                  onPress={() => sendMessage()}
+                  onPress={sendMessage}
+                  disabled={!inputMessage.trim()}
                 >
-                  <Icon.Send stroke={themeColors.bgColor(1)} />
+                  <Icon.Send
+                    stroke={
+                      inputMessage.trim() ? themeColors.bgColor(1) : "#ccc"
+                    }
+                  />
                 </TouchableOpacity>
               </View>
             </View>

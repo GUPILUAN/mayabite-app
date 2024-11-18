@@ -66,7 +66,7 @@ export default function OutDeliveryScreen() {
         if (data.order && data.order._id === order._id) {
           if (data.order.status === "canceled") {
             Alert.alert("La orden ha sido cancelada por el usuario");
-            navigation.navigate("Home");
+            replace("Home");
           }
           if (
             data.order.status === "delivered" &&
@@ -86,24 +86,33 @@ export default function OutDeliveryScreen() {
 
   useEffect(() => {
     const checkLocation = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-
-      const locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 10000,
-          distanceInterval: 5,
-        },
-        (location) => {
-          if (location.coords) {
-            console.log("ACTUALIZANDO POSICION");
-            dispatch(setLocation(location.coords));
-          }
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          console.log("Permiso de ubicación denegado");
+          return;
         }
-      );
 
-      return () => locationSubscription.remove();
+        const locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 5000, // Actualiza cada 5 segundos
+            distanceInterval: 5, // Solo actualiza si hay un cambio de 5 metros
+          },
+          (location) => {
+            if (location.coords) {
+              console.log("ACTUALIZANDO POSICION");
+              dispatch(setLocation(location.coords));
+            }
+          }
+        );
+
+        return () => {
+          locationSubscription.remove();
+        };
+      } catch (error) {
+        console.error("Error al solicitar la ubicación:", error);
+      }
     };
 
     checkLocation();

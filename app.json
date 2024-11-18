@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.jpg",
     "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
 
     "splash": {
       "image": "./assets/splash.png",
@@ -36,6 +37,7 @@
         "projectId": "34fb4533-3ae0-4783-8375-68051ed32fbf"
       }
     },
+
     "owner": "luisgtz15",
     "plugins": [
       [

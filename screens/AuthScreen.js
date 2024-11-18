@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
@@ -30,11 +31,19 @@ export default function AuthScreen() {
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      username: "",
+      phone: "",
+      email: "",
+      password: "",
+    },
+  });
 
-  const [isLogin, setIsLogin] = useState(true); // Cambia entre login y registro
-  const [isResetting, setIsResetting] = useState(false); // Para resetear la contraseña
+  const [isLogin, setIsLogin] = useState(true);
+  const [isResetting, setIsResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
@@ -43,125 +52,160 @@ export default function AuthScreen() {
   const [isLoading, setLoading] = useState(false);
 
   const settings = useSelector(selectSettings);
+  const theme = useSelector(selectTheme);
   const dispatch = useDispatch();
 
+  const isDarkMode = theme === "dark";
+  const bgColor = isDarkMode ? "bg-black" : "bg-white";
+  const textColor = isDarkMode ? "text-white" : "text-black";
+
   useEffect(() => {
-    async function loginBiometrics() {
+    checkBiometrics();
+  }, []);
+
+  const checkBiometrics = async () => {
+    try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
       setIsBiometricAvailable(compatible && enrolled);
-      const biometricsType =
-        await LocalAuthentication.supportedAuthenticationTypesAsync();
-      setBiometric(biometricsType);
-      const authenticated = await alreadyAuthenticated();
-      setIsAuthenticated(authenticated);
-      if (isAuthenticated) {
-        try {
-          await authenticateWithBiometrics();
-        } catch {
-          Alert.alert(
-            "El método por biometricos falló en el servidor",
-            "Inténtalo con tu contraseña por favor."
-          );
+
+      if (compatible && enrolled) {
+        const biometricsType =
+          await LocalAuthentication.supportedAuthenticationTypesAsync();
+        setBiometric(biometricsType);
+
+        const authenticated = await alreadyAuthenticated();
+        setIsAuthenticated(authenticated);
+
+        if (authenticated) {
+          try {
+            await authenticateWithBiometrics();
+          } catch (error) {
+            Alert.alert(
+              "Error de autenticación biométrica",
+              "Por favor, intenta con tu contraseña."
+            );
+          }
         }
       }
+    } catch (error) {
+      console.error("Error checking biometrics:", error);
     }
-    loginBiometrics();
-  }, [isAuthenticated]);
+  };
 
   const authenticateWithBiometrics = async () => {
-    if (isBiometricAvailable) {
+    if (!isBiometricAvailable) return;
+
+    try {
       const { success } = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Autenticación con Biométricos.",
+        promptMessage: "Autenticación con Biométricos",
+        fallbackLabel: "Use password",
       });
 
       if (success) {
-        // Redirige al usuario a la pantalla Home
         const access_token = await refreshToken("biometrics_token");
-        if (access_token) {
-          const response = await retrieveData("/user");
-          dispatch(setUser(response));
-          navigation.navigate("Home");
-        } else {
+        if (!access_token) {
           throw new Error("No se pudo refrescar el token");
         }
+
+        const response = await retrieveData("/user");
+        dispatch(setUser(response));
+        navigation.navigate("Home");
       } else {
         Alert.alert("Autenticación fallida", "Inténtalo de nuevo.");
       }
+    } catch (error) {
+      Alert.alert("Error", error.message);
     }
   };
 
   const alreadyAuthenticated = async () => {
-    const token = await getData("access_token");
-    return token !== null && isBiometricAvailable && settings.isBiometricAuth;
+    try {
+      const token = await getData("access_token");
+      return Boolean(token && isBiometricAvailable && settings.isBiometricAuth);
+    } catch (error) {
+      console.error("Error checking authentication:", error);
+      return false;
+    }
   };
 
   const onSubmit = async (data) => {
-    setLoading(true);
-    const response = await loginUser(data, isResetting, isLogin);
-    if (
-      response.status === 201 ||
-      response.data.access_token ||
-      response.status === 200
-    ) {
-      if (!isResetting && response.data.access_token) {
-        // Almacenar el token de forma segura
-        const { access_token, refresh_token } = response.data;
+    try {
+      setLoading(true);
+      setErrorMessage("");
+      setSuccessMessage("");
 
-        if (access_token) {
-          await saveData("access_token", access_token);
+      const response = await loginUser(data, isResetting, isLogin);
+
+      if (
+        response.status === 201 ||
+        response.data.access_token ||
+        response.status === 200
+      ) {
+        if (!isResetting && response.data.access_token) {
+          const { access_token, refresh_token } = response.data;
+
+          await Promise.all([
+            access_token && saveData("access_token", access_token),
+            refresh_token && saveData("refresh_token", refresh_token),
+          ]);
+
+          const user = await retrieveData("/user");
+          dispatch(setUser(user));
+          navigation.navigate("Home");
+        } else if (!isResetting) {
+          setSuccessMessage(
+            "Registro exitoso. Revisa tu correo electrónico para confirmar tu cuenta."
+          );
+          setIsLogin(true);
+          reset();
+        } else {
+          setSuccessMessage(
+            "Correo electrónico enviado para restablecer contraseña."
+          );
+          setIsResetting(false);
+          reset();
         }
-        if (refresh_token) {
-          await saveData("refresh_token", refresh_token);
-        }
-        const user = await retrieveData("/user");
-        dispatch(setUser(user));
-        setSuccessMessage("");
-        setErrorMessage("");
-        navigation.navigate("Home"); // Redirigir a Home si es login exitoso
-      } else if (!isResetting) {
-        // Mostrar mensaje de éxito para el registro y que confirme el correo
-        setSuccessMessage(
-          "Registro exitoso. Revisa tu correo electrónico para confirmar tu cuenta."
-        );
-        setIsLogin(true); // Cambiar a la pantalla de login
-        setErrorMessage("");
       } else {
-        setSuccessMessage(
-          "Correo electrónico enviado para restablecer contraseña."
-        );
-        setErrorMessage("");
-        setIsResetting(false); // Cambiar a la pantalla de login
+        setErrorMessage(response.data.message || "Error al intentar acceder.");
       }
-    } else if (response.data.message) {
-      setSuccessMessage("");
-      setErrorMessage(response.data.message);
-    } else {
-      setSuccessMessage("");
-      setErrorMessage("Error al intentar acceder.");
+    } catch (error) {
+      setErrorMessage("Error de conexión. Inténtalo más tarde.");
+      console.error("Submit error:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const theme = useSelector(selectTheme);
-  const isDarkMode = theme === "dark";
-  const bgColor = isDarkMode ? "bg-black" : " bg-white";
-  const textColor = isDarkMode ? "text-white" : " text-black";
+  const toggleAuthMode = () => {
+    setIsLogin(!isLogin);
+    setErrorMessage("");
+    setSuccessMessage("");
+    reset();
+  };
+
+  const toggleResetPassword = () => {
+    setIsResetting(isLogin ? !isResetting : false);
+    setIsLogin(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    reset();
+  };
 
   return (
     <KeyboardAvoidingView
-      className={"flex-1 " + bgColor}
-      behavior="padding"
-      keyboardVerticalOffset={-120}
+      className={`flex-1 ${bgColor}`}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? -120 : 0}
     >
       <StatusBar style={isDarkMode ? "light" : "dark"} />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View className={"flex-1 justify-center p-16 " + bgColor}>
+        <View className={`flex-1 justify-center p-16 ${bgColor}`}>
           {isLoading && (
             <ActivityIndicator size="large" color={themeColors.bgColor(1)} />
           )}
 
-          <Text className={"font-bold text-xl text-center mb-2 " + textColor}>
+          <Text className={`font-bold text-xl text-center mb-2 ${textColor}`}>
             {isResetting
               ? "Ingresa tu email"
               : isLogin
@@ -169,30 +213,32 @@ export default function AuthScreen() {
                 : "Registro"}
           </Text>
 
-          {/* Mostrar mensaje de éxito cuando el registro sea exitoso */}
-          {successMessage ? (
+          {successMessage && (
             <Text className="text-center mb-8 text-green-600">
               {successMessage}
             </Text>
-          ) : null}
+          )}
 
-          {/* Campo de username, solo visible en el registro */}
           {!isLogin && (
             <>
               <Controller
                 control={control}
                 name="username"
-                rules={{ required: "El nombre de usuario es obligatorio" }}
+                rules={{
+                  required: "El nombre de usuario es obligatorio",
+                  minLength: {
+                    value: 3,
+                    message: "El nombre debe tener al menos 3 caracteres",
+                  },
+                }}
                 render={({ field: { onChange, value } }) => (
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, isDarkMode && styles.inputDark]}
                     placeholder="Nombre de usuario"
                     placeholderTextColor="gray"
                     autoComplete="name"
                     onChangeText={onChange}
                     value={value}
-                    autoCapitalize={true}
-                    autoCorrect={true}
                     className={textColor}
                   />
                 )}
@@ -202,23 +248,26 @@ export default function AuthScreen() {
                   {errors.username.message}
                 </Text>
               )}
+
               <Controller
                 control={control}
                 name="phone"
-                rules={{ required: "El telefono de usuario es obligatorio" }}
+                rules={{
+                  required: "El teléfono es obligatorio",
+                  pattern: {
+                    value: /^\d{10}$/,
+                    message:
+                      "Ingresa un número de teléfono válido (10 dígitos)",
+                  },
+                }}
                 render={({ field: { onChange, value } }) => (
                   <TextInput
-                    style={styles.input}
-                    placeholder="Telefono"
+                    style={[styles.input, isDarkMode && styles.inputDark]}
+                    placeholder="Teléfono"
                     placeholderTextColor="gray"
-                    onChangeText={(text) => {
-                      const filteredText = text.replace(/\s/g, "");
-                      onChange(filteredText);
-                    }}
-                    autoCapitalize={false}
+                    onChangeText={(text) => onChange(text.replace(/\D/g, ""))}
                     value={value}
                     maxLength={value && value.length >= 10 ? 10 : 12}
-                    autoComplete="tel"
                     keyboardType="numeric"
                     className={textColor}
                   />
@@ -232,24 +281,26 @@ export default function AuthScreen() {
             </>
           )}
 
-          {/* Campo de email */}
           <Controller
             control={control}
             name="email"
-            rules={{ required: "El correo es obligatorio" }}
+            rules={{
+              required: "El correo es obligatorio",
+              pattern: {
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: "Ingresa un correo electrónico válido",
+              },
+            }}
             render={({ field: { onChange, value } }) => (
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDarkMode && styles.inputDark]}
                 autoComplete="email"
                 keyboardType="email-address"
                 placeholder="Correo electrónico"
                 placeholderTextColor="gray"
-                onChangeText={(text) => {
-                  const filteredText = text.replace(/\s/g, "");
-                  onChange(filteredText);
-                }}
+                onChangeText={(text) => onChange(text.trim())}
                 value={value}
-                autoCapitalize={false}
+                autoCapitalize="none"
                 className={textColor}
               />
             )}
@@ -260,16 +311,21 @@ export default function AuthScreen() {
             </Text>
           )}
 
-          {/* Campo de password */}
           {!isResetting && (
             <>
               <Controller
                 control={control}
                 name="password"
-                rules={{ required: "La contraseña es obligatoria" }}
+                rules={{
+                  required: "La contraseña es obligatoria",
+                  minLength: {
+                    value: 6,
+                    message: "La contraseña debe tener al menos 6 caracteres",
+                  },
+                }}
                 render={({ field: { onChange, value } }) => (
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, isDarkMode && styles.inputDark]}
                     placeholder="Contraseña"
                     placeholderTextColor="gray"
                     secureTextEntry
@@ -287,18 +343,17 @@ export default function AuthScreen() {
             </>
           )}
 
-          {/* Mostrar mensajes de error */}
-          {errorMessage ? (
+          {errorMessage && (
             <Text className="mb-2 text-center text-red-700">
               {errorMessage}
             </Text>
-          ) : null}
+          )}
 
           <View className="relative">
             <LinearGradient
-              colors={themeColors.bgColorGradient(1)} // Usa los colores del gradiente
-              start={{ x: 0, y: 0 }} // Punto de inicio (esquina superior izquierda)
-              end={{ x: 1, y: 1 }} // Punto de finalización (esquina inferior derecha)
+              colors={themeColors.bgColorGradient(1)}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               className="mb-5 rounded-full p-1 shadow top-5 left-2"
             >
               <TouchableOpacity onPress={handleSubmit(onSubmit)}>
@@ -311,35 +366,26 @@ export default function AuthScreen() {
                 </Text>
               </TouchableOpacity>
             </LinearGradient>
-            {
-              biometrics && isAuthenticated ? (
-                <View className="flex-auto items-center mt-3">
-                  <TouchableOpacity
-                    onPress={async () => await authenticateWithBiometrics()}
-                  >
-                    <Image
-                      style={{ width: 45, height: 45 }}
-                      source={
-                        biometrics.includes(1)
-                          ? require("../assets/images/touchid.png")
-                          : biometrics.includes(2)
-                            ? require("../assets/images/faceid.png")
-                            : require("../assets/images/iris.png")
-                      }
-                      tintColor={themeColors.bgColor(1)}
-                    />
-                  </TouchableOpacity>
-                </View>
-              ) : null /* Mostrar el botón de autenticación biométrica */
-            }
-            {/* Cambiar entre registro e inicio de sesión */}
-            <TouchableOpacity
-              onPress={() => {
-                setIsLogin(!isLogin);
-                setErrorMessage("");
-                setSuccessMessage("");
-              }}
-            >
+
+            {biometrics && isAuthenticated && (
+              <View className="flex-auto items-center mt-3">
+                <TouchableOpacity onPress={authenticateWithBiometrics}>
+                  <Image
+                    style={{ width: 45, height: 45 }}
+                    source={
+                      biometrics.includes(1)
+                        ? require("../assets/images/touchid.png")
+                        : biometrics.includes(2)
+                          ? require("../assets/images/faceid.png")
+                          : require("../assets/images/iris.png")
+                    }
+                    tintColor={themeColors.bgColor(1)}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity onPress={toggleAuthMode}>
               <Text
                 className="mt-4 text-center"
                 style={{ color: themeColors.text }}
@@ -351,15 +397,8 @@ export default function AuthScreen() {
                     : "¿Ya tienes cuenta? Inicia sesión"}
               </Text>
             </TouchableOpacity>
-            {/* Cambiar a recuperar contraseña */}
-            <TouchableOpacity
-              onPress={() => {
-                setIsResetting(isLogin ? !isResetting : false);
-                setIsLogin(true);
-                setErrorMessage("");
-                setSuccessMessage("");
-              }}
-            >
+
+            <TouchableOpacity onPress={toggleResetPassword}>
               <Text
                 className="mt-4 text-center"
                 style={{ color: themeColors.text }}
@@ -383,5 +422,8 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     marginBottom: 12,
+  },
+  inputDark: {
+    borderColor: "#444",
   },
 });
