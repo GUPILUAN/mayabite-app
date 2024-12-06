@@ -1,10 +1,9 @@
 import axios from "axios";
 import { deleteData, getData, saveData } from "./userKey";
-import { API_URL } from "@env";
 import { jwtDecode } from "jwt-decode";
 import { replace } from "./NavigationService";
 
-export const apiMayabite = API_URL;
+export const apiMayabite = process.env.EXPO_PUBLIC_API_URL;
 const api = axios.create({
   baseURL: apiMayabite,
 });

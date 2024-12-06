@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { selectStore_ } from "../slices/store_Slice";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { themeColors } from "../theme";
 import * as Icon from "react-native-feather";
 import { emptyCart } from "../slices/cartSlice";
@@ -168,7 +168,8 @@ export default function OutDeliveryScreen() {
         }}
         className="flex-1"
         mapType="standard"
-        //provider={PROVIDER_GOOGLE}
+        provider={PROVIDER_GOOGLE}
+        showsMyLocationButton
       >
         <Marker
           image={require("../assets/images/stores/restaurant.png")}

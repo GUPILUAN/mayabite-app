@@ -1,11 +1,10 @@
-import { SOCKET_URL } from "@env";
 import io from "socket.io-client";
 
 let socket;
 
 export const initiateSocket = () => {
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    socket = io(process.env.EXPO_PUBLIC_SOCKET_URL, {
       transports: ["websocket"], // Usa WebSockets
       reconnection: true, // Habilita la reconexión automática
       reconnectionAttempts: 5, // Número de intentos de reconexión
