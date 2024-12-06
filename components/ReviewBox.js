@@ -1,15 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import * as Icon from "react-native-feather"; // Import all Feather icons
 import { replace } from "../functions/NavigationService";
 import { useRoute } from "@react-navigation/native";
 import { postData } from "../functions/apiCalls";
 import { themeColors } from "../theme";
+import { useDispatch } from "react-redux";
+import { emptyCart } from "../slices/cartSlice";
 
 export default function ReviewBox() {
   const { params } = useRoute();
   const store = params;
   const [rating, setRating] = useState(0);
+  const dispatch = useDispatch();
 
   const handleRate = async () => {
     if (rating === 0) {
@@ -21,8 +24,10 @@ export default function ReviewBox() {
       score: rating,
     });
 
-    console.log(response.success);
-    replace("Home");
+    if (response.success) {
+      dispatch(emptyCart());
+      replace("Home");
+    }
   };
 
   return (
@@ -42,7 +47,7 @@ export default function ReviewBox() {
                 width={30}
                 height={30}
                 color={star <= rating ? "#FBBF24" : "#D1D5DB"}
-                fill={star <= rating ? "#FBBF24" : "none"}
+                fill={star <= rating ? "#FBBF24" : "#fff"}
               />
             </TouchableOpacity>
           ))}
@@ -51,7 +56,10 @@ export default function ReviewBox() {
           <TouchableOpacity
             className=" text-white px-6 py-2 rounded-lg"
             style={{ backgroundColor: themeColors.bgColor(1) }}
-            onPress={() => replace("Home")}
+            onPress={() => {
+              replace("Home");
+              dispatch(emptyCart());
+            }}
           >
             <Text className="text-white text-center">Skip</Text>
           </TouchableOpacity>

@@ -62,7 +62,7 @@ export default function OrderSelection() {
         </TouchableOpacity>
         <View>
           <Text className={"text-center text-xl font-bold " + textColor}>
-            Your cart
+            Order ID
           </Text>
           <Text
             className={

@@ -35,6 +35,7 @@ export default function CartScreen() {
 
   const cartItems = useSelector(selectCartItems);
   const cartTotal = useSelector(selectCartTotal);
+  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
 
   const deliveryFee = 10;
 
@@ -75,28 +76,26 @@ export default function CartScreen() {
   const location = useSelector(selectLocation);
 
   const handleCreatingOrder = async () => {
-    if (!checkIfInsideArea(location)) {
-      const response = await postData("/order/create", {
-        products: Object.entries(groupedProducts),
-        total: cartTotal + deliveryFee,
-        store: store._id,
-        destiny: location,
-      });
-      if (response.success) {
-        const newOrder = await retrieveData(`/order/${response.id}`);
-        if (newOrder) {
-          dispatch(setOrderActive(newOrder));
-          navigation.navigate("OrderPreparing");
-        }
-      } else {
-        alert(response.message);
+    if (isProcessingOrder) return; // Evita que se procese si ya está en curso
+    setIsProcessingOrder(true); // Bloquea nuevos intentos
+
+    const response = await postData("/order/create", {
+      products: Object.entries(groupedProducts),
+      total: cartTotal + deliveryFee,
+      store: store._id,
+      destiny: location,
+    });
+    if (response.success) {
+      const newOrder = await retrieveData(`/order/${response.id}`);
+      if (newOrder) {
+        dispatch(setOrderActive(newOrder));
+        navigation.navigate("OrderPreparing");
       }
     } else {
-      Alert.alert(
-        "IMPOSIBLE",
-        "Necesitas estar dentro del campus para realizar ordenes"
-      );
+      alert(response.message);
     }
+
+    setIsProcessingOrder(false); // Permite futuros intentos
   };
 
   return (
@@ -240,6 +239,7 @@ export default function CartScreen() {
             onPress={handleCreatingOrder}
             style={{ backgroundColor: themeColors.bgColor(1) }}
             className="p-3 rounded-full"
+            activeOpacity={0.7} // Reduce sensibilidad
           >
             <Text className="text-white text-center font-bold text-lg">
               Place Order

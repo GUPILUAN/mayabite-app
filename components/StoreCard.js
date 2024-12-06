@@ -72,7 +72,9 @@ export default function StoreCard({ item }) {
                 style={{ elevation: 5 }}
               >
                 <Icon.MapPin color="gray" width="15" height="15" />
-                <Text className={"text-xs " + textColor}>• {}</Text>
+                <Text className={"text-xs " + textColor}>
+                  • {item.location.name}
+                </Text>
               </View>
             </View>
           </TouchableOpacity>

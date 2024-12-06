@@ -24,8 +24,8 @@ export default function DeliveryScreen() {
   const order = useSelector(selectOrderActive);
 
   const [isInArea, setIsInArea] = useState(false);
-  const targetLatitude = 21.11106;
-  const targetLongitude = -89.61235;
+  const targetLatitude = store.location.latitude;
+  const targetLongitude = store.location.longitude;
   const socket = useSocket();
 
   const [delivery_man, setDelivery_man] = useState({});
@@ -48,7 +48,6 @@ export default function DeliveryScreen() {
     });
     socket.on("handleOrder", (data) => {
       if (data.order.status === "delivered" && data.order._id === order._id) {
-        dispatch(emptyCart());
         navigation.navigate("Review", store);
       }
     });
@@ -119,13 +118,13 @@ export default function DeliveryScreen() {
         <View className="flex-row justify-between px-5 pt-10">
           <View>
             <Text className={"text-lg font-semibold " + textColor}>
-              {isInArea ? "¡Estás dentro del área!" : "Te estás acercando..."}
+              {"Ya viene tu pedido"}
             </Text>
             <Text className={"text-3xl font-extrabold " + textColor}>
-              Estimated Arrival
+              Tiempo estimado...
             </Text>
             <Text className={"mt-2 font-semibold " + textColor}>
-              Your order is on its way!
+              Mantén tu celular cerca!
             </Text>
           </View>
           <Image

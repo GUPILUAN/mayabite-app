@@ -161,7 +161,9 @@ export default function StoreScreen() {
             </View>
             <View className="flex-row items-center space-x-1">
               <Icon.MapPin color="gray" width="15" height="15" />
-              <Text className={"text-xs " + textColor}>• {""}</Text>
+              <Text className={"text-xs " + textColor}>
+                • {store.location.name}
+              </Text>
             </View>
           </View>
           <Text className="text-gray-500 mt-2">{store.description}</Text>
